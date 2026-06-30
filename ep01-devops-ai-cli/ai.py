@@ -20,9 +20,19 @@ console = Console()
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
+def print_banner():
+    console.print()
+    console.print(Rule(style="cyan"))
+    console.print("[bold cyan]  DevOps AI CLI  v0.1[/]")
+    console.print("[dim]  AI DevOps Lab — Let's build our own DevOps Copilot[/]")
+    console.print(Rule(style="cyan"))
+    console.print()
+
+
 @app.callback()
 def main():
     """DevOps AI CLI - AI assistant for DevOps engineers."""
+    print_banner()
 
 
 def get_client() -> OpenAI:
@@ -92,7 +102,8 @@ Respond ONLY with JSON in this exact shape:
   "problems": ["concrete problems, reference the actual values"],
   "risks": ["security or reliability risks"],
   "suggestions": ["concrete, actionable improvements"],
-  "fixed_yaml": "a corrected version of the full YAML that applies your suggestions"
+  "fixed_yaml": "a corrected version of the full YAML that applies your suggestions",
+  "fixed_production_readiness": <integer 1-10, estimated score after applying the fixes>
 }}
 
 Be specific. Do not invent fields that are not present."""
@@ -180,7 +191,15 @@ def explain(file: Path = typer.Argument(..., help="Path to a Kubernetes YAML fil
     if fixed and typer.confirm("Generate fixed YAML?"):
         out_path = file.with_name(f"{file.stem}-fixed{file.suffix}")
         out_path.write_text(fixed if fixed.endswith("\n") else fixed + "\n")
-        console.print(f"[bold green]✅ Created[/] {out_path}")
+        before = int(data.get("production_readiness", 0))
+        after = int(data.get("fixed_production_readiness", before))
+        before_color = score_color(before)
+        after_color = score_color(after)
+        console.print(f"[bold green]✔ {out_path.name} generated[/]")
+        console.print(
+            f"[bold]✔ Production score[/]  "
+            f"[bold {before_color}]{before}/10[/] → [bold {after_color}]{after}/10[/]"
+        )
 
 
 if __name__ == "__main__":
