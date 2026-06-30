@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from pathlib import Path
 
 import typer
@@ -105,11 +106,11 @@ def score_color(score: int) -> str:
     return "green"
 
 
-def render_section(title: str, items: list[str], style: str):
+def render_section(icon: str, title: str, items: list[str], style: str):
     if not items:
         return
     body = "\n".join(f"  • {item}" for item in items)
-    console.print(f"[bold {style}]{title}[/]\n{body}\n")
+    console.print(f"[bold {style}]{icon} {title}[/]\n{body}\n")
 
 
 def render_result(data: dict):
@@ -120,14 +121,15 @@ def render_result(data: dict):
     console.print(
         Panel(
             f"[bold {color}]{score} / 10[/]",
-            title="Production Readiness",
+            title="[bold]Production Readiness[/]",
             border_style=color,
+            subtitle=f"[dim]{'Low — not production-ready' if score <= 3 else 'Needs work' if score <= 6 else 'Looking good'}[/]",
         )
     )
-    render_section("Problems", data.get("problems", []), "red")
-    render_section("Risks", data.get("risks", []), "yellow")
-    render_section("Best Practices", data.get("best_practices", []), "green")
-    render_section("Suggestions", data.get("suggestions", []), "blue")
+    render_section("❌", "Problems", data.get("problems", []), "red")
+    render_section("⚠️ ", "Risks", data.get("risks", []), "yellow")
+    render_section("✅", "Best Practices", data.get("best_practices", []), "green")
+    render_section("💡", "Suggestions", data.get("suggestions", []), "blue")
 
 
 @app.command()
@@ -152,13 +154,15 @@ def explain(file: Path = typer.Argument(..., help="Path to a Kubernetes YAML fil
     render_facts(file.name, rows)
 
     client = get_client()
-    with console.status("[bold green]AI is reviewing your manifest...", spinner="dots"):
+    start = time.time()
+    with console.status("[bold green]🤖 AI is reviewing your manifest...", spinner="dots"):
         response = client.chat.completions.create(
             model=MODEL,
             messages=[{"role": "user", "content": build_prompt(file.name, raw, facts_to_text(rows))}],
             temperature=0.2,
             response_format={"type": "json_object"},
         )
+    elapsed = time.time() - start
 
     try:
         data = json.loads(response.choices[0].message.content or "{}")
@@ -170,11 +174,13 @@ def explain(file: Path = typer.Argument(..., help="Path to a Kubernetes YAML fil
     console.print(Rule(style="cyan"))
     render_result(data)
 
+    console.print(f"[dim]✓ AI review completed in {elapsed:.1f}s[/]\n")
+
     fixed = data.get("fixed_yaml")
     if fixed and typer.confirm("Generate fixed YAML?"):
         out_path = file.with_name(f"{file.stem}-fixed{file.suffix}")
         out_path.write_text(fixed if fixed.endswith("\n") else fixed + "\n")
-        console.print(f"[bold green]Created[/] {out_path}")
+        console.print(f"[bold green]✅ Created[/] {out_path}")
 
 
 if __name__ == "__main__":
