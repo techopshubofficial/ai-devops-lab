@@ -13,9 +13,17 @@ ai explain deployment.yaml
 ```
 
 1. Reads the Kubernetes YAML file
-2. Extracts key facts (kind, replicas, image, resources, probes, ports)
-3. Sends that context to the AI
-4. Prints: what it does, best practices, risks/security issues, suggestions
+2. **Extracts key facts** and shows them in a table — problems (e.g. `latest`
+   tag, missing probes, no resources) are highlighted in red
+3. Sends that context to the AI (live "AI is reviewing..." spinner)
+4. Prints a rich report:
+   - **Summary** of what the manifest does
+   - **Production Readiness score** (1-10, color-coded)
+   - **Problems / Risks / Best Practices / Suggestions** (color-coded sections)
+5. Offers to **generate a fixed YAML** (`deployment-fixed.yaml`)
+
+This is why it beats a generic chatbot: it does real engineering on *your* file
+before the AI ever sees it, and gives you a structured, actionable report.
 
 ## Setup
 
